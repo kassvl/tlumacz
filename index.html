@@ -133,7 +133,7 @@ header h1{font-size:17px;margin:0;flex:1;font-weight:600}
     <div class="field"><label for="ctx">Bağlam (çeviriyi iyileştirir; kız arkadaşının adını yaz)</label>
       <textarea id="ctx"></textarea></div>
     <label class="tog">Lehçe çeviriyi otomatik seslendir <input type="checkbox" id="autoPL"></label>
-    <label class="tog">Türkçe çeviriyi de seslendir <input type="checkbox" id="speakTR"></label>
+    <label class="tog">Lehçe konuşulunca Türkçesini sesli oku <input type="checkbox" id="speakTR"></label>
     <div class="field"><label for="rate">Konuşma hızı: <span id="rateVal"></span></label>
       <input type="range" id="rate" min="0.6" max="1.3" step="0.05" style="width:100%"></div>
     <div class="field"><label for="silence">Sessizlik süresi (konuşma bitti sayılır): <span id="silenceVal"></span></label>
@@ -233,13 +233,14 @@ var store = {
   set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
 var settings = {
-  apiKey: '', model: 'claude-sonnet-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 1.0, voice: '', silence: 0.7, engine: 'builtin', elKey: '', elVoice: ''
+  apiKey: '', model: 'claude-sonnet-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: true, rate: 1.0, voice: '', silence: 0.7, engine: 'builtin', elKey: '', elVoice: ''
 };
 // iOS paste can carry spaces, line breaks, zero-width characters or quotes; API keys never contain them
 function cleanKey(v) { return String(v || '').replace(/[\s\u200B-\u200D\u2060\uFEFF"'`\u201C\u201D\u2018\u2019]/g, ''); }
 function loadSettings() {
   try { var s = JSON.parse(store.get('tl_settings', '{}')); for (var k in s) if (k in settings) settings[k] = s[k]; } catch (e) {}
   settings.apiKey = cleanKey(settings.apiKey); settings.elKey = cleanKey(settings.elKey);
+  if (!store.get('tl_speaktr_v1', '')) { settings.speakTR = true; store.set('tl_speaktr_v1', '1'); saveSettings(); }
   if (!store.get('tl_model_v2', '')) { if (settings.model === 'claude-opus-5-5') settings.model = 'claude-sonnet-5-5'; store.set('tl_model_v2', '1'); saveSettings(); }
 }
 function saveSettings() { store.set('tl_settings', JSON.stringify(settings)); }
@@ -611,7 +612,7 @@ function speak(text, lang) {
 function makeSpeaker(mode) {
   var lang = mode === 'tr2pl' ? 'pl-PL' : 'tr-TR';
   var on = mode === 'tr2pl' ? !!settings.autoPL : mode === 'pl2tr' ? !!settings.speakTR : false;
-  var progressive = mode === 'tr2pl', done = 0, closed = false;
+  var progressive = mode === 'tr2pl' || mode === 'pl2tr', done = 0, closed = false;
   function say(t) { t = t.trim(); if (t) queueSpeak(t, lang); }
   return {
     feed: function (t, isClosed) {
