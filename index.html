@@ -511,7 +511,9 @@ function startListening(mode) {
   try {
     rec = sess.r = new SR();
     recFinish = finish;
-    rec.lang = lang; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+    rec.lang = lang; rec.interimResults = true; rec.maxAlternatives = 1;
+    // iOS Safari repeats earlier text in continuous mode; one-shot mode plus our silence timer is enough there.
+    rec.continuous = !(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
     rec.onresult = function (e) {
       var f = [], i = '';
       for (var k = 0; k < e.results.length; k++) { if (e.results[k].isFinal) f.push(e.results[k][0].transcript.trim()); else i += e.results[k][0].transcript; }
