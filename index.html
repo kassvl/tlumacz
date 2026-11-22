@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Tłumacz PL-TR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tłumacz">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{--bg:#0f1419;--panel:#171e26;--panel2:#1f2832;--line:#2a3541;--text:#e8eef5;--dim:#8fa0b2;--accent:#4cc2a0;--red:#e5484d;--blue:#4a8fe7;--amber:#e0a43a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow-x:hidden}
+body{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button{font:inherit;color:inherit;border:0;background:var(--panel2);border-radius:14px;cursor:pointer;touch-action:manipulation}
+button:active{filter:brightness(1.25)}
+header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line)}
+header h1{font-size:17px;margin:0;flex:1;font-weight:600}
+.iconbtn{min-width:44px;height:44px;font-size:20px}
+.tabbtn{height:44px;padding:0 14px;font-size:15px}
+#history{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 12px;-webkit-overflow-scrolling:touch;min-height:80px}
+.empty{color:var(--dim);text-align:center;margin-top:24px;line-height:1.5;font-size:15px}
+.msg{background:var(--panel);border-radius:16px;padding:12px 14px;margin-bottom:10px;border-left:4px solid var(--blue);word-wrap:break-word;overflow-wrap:anywhere}
+.msg.them{border-left-color:var(--amber)}
+.msg.ask{border-left-color:var(--accent);background:#14231f}
+.msg .pl{font-size:30px;line-height:1.2;font-weight:600;margin:2px 0 6px}
+.msg .big-tr{font-size:26px;line-height:1.25;font-weight:600;margin:2px 0 6px}
+.msg .small{font-size:14px;color:var(--dim);margin:2px 0}
+.msg .pron{font-size:18px;color:var(--accent);margin:4px 0}
+.msg .note{font-size:14px;color:var(--amber);margin-top:6px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.play{height:44px;min-width:56px;font-size:18px}
+.sug{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line)}
+.sug .p{font-size:20px;font-weight:600}
+.sug .t{font-size:14px;color:var(--dim)}
+.sug .r{font-size:15px;color:var(--accent)}
+#live{min-height:22px;padding:0 14px;font-size:15px;color:var(--dim);display:flex;gap:8px;align-items:center}
+#live.err{color:#ff8a8e}
+.spin{width:16px;height:16px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;display:none}
+.busy .spin{display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+#bottom{padding:8px 12px 10px;border-top:1px solid var(--line);background:var(--bg)}
+#textrow{display:flex;gap:6px;margin-bottom:8px}
+#txt{flex:1;min-width:0;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 12px;font-size:17px}
+.seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.seg button{border-radius:0;height:48px;padding:0 10px;font-size:14px;background:var(--panel)}
+.seg button.on{background:var(--accent);color:#04251c;font-weight:700}
+#send{height:48px;width:52px;font-size:20px;background:var(--accent);color:#04251c}
+#mics{display:grid;grid-template-columns:1fr 1fr;gap:10px;height:32vh;min-height:130px;max-height:260px}
+.mic{border-radius:22px;font-size:19px;font-weight:700;line-height:1.25;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:64px}
+.mic small{font-size:13px;font-weight:500;opacity:.85}
+#micTR{background:#1c3556}
+#micPL{background:#4a3a14}
+.mic.rec{background:var(--red)!important;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.6)}50%{box-shadow:0 0 0 14px rgba(229,72,77,0)}}
+#ask{margin-top:8px;width:100%;height:52px;font-size:16px;background:#14231f;border:1px solid #2a5a4a}
+#ask.rec{background:var(--red);animation:pulse 1s ease-in-out infinite}
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:none;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.overlay.open{display:flex}
+.ohead{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+.ohead h2{margin:0;flex:1;font-size:18px}
+.obody{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.phrase{display:block;width:100%;text-align:left;background:var(--panel);margin-bottom:10px;padding:12px 14px;min-height:64px}
+.phrase .p{font-size:23px;font-weight:600}
+.phrase .t{font-size:15px;color:var(--dim);margin-top:2px}
+.phrase .r{font-size:17px;color:var(--accent);margin-top:2px}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:14px;color:var(--dim);margin-bottom:6px}
+.field input[type=password],.field input[type=text],.field select,.field textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px;font-family:inherit}
+.field textarea{min-height:110px}
+.tog{display:flex;align-items:center;justify-content:space-between;padding:10px 0;font-size:16px}
+.tog input{width:24px;height:24px}
+.btn{height:48px;padding:0 16px;font-size:16px;background:var(--panel2);border:1px solid var(--line)}
+.btn.danger{color:#ff8a8e}
+#testres{margin-left:10px;font-size:14px}
+#show{background:#000;z-index:30;align-items:center;justify-content:center;text-align:center;padding:20px}
+#show .big{font-size:min(15vw,90px);font-weight:700;line-height:1.15;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+#show .hint{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));color:#666;font-size:14px}
+.nosr{display:none}
+.nospeech #mics,.nospeech #ask .mi{display:none}
+.nospeech #textrow{margin-bottom:0}
+#srhint{display:none;color:var(--amber);font-size:14px;padding:6px 2px}
+.nospeech #srhint{display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tłumacz PL⇄TR</h1>
+  <button class="tabbtn" id="bookBtn">📖 Kitap</button>
+  <button class="iconbtn" id="gearBtn" aria-label="Ayarlar">⚙️</button>
+</header>
+
+<div id="history" aria-live="polite"></div>
+<div id="live"><span class="spin"></span><span id="livetxt"></span></div>
+
+<div id="bottom">
+  <div id="srhint">Bu tarayıcıda ses tanıma yok: klavyedeki mikrofonu kullan.</div>
+  <div id="textrow">
+    <div class="seg" id="langseg">
+      <button data-m="tr" class="on">TR</button><button data-m="pl">PL</button><button data-m="ask">🤫</button>
+    </div>
+    <input id="txt" type="text" placeholder="Yaz veya klavye mikrofonu…" autocomplete="off" autocorrect="off" enterkeyhint="send">
+    <button id="send" aria-label="Gönder">➤</button>
+  </div>
+  <div id="mics">
+    <button class="mic" id="micTR"><span>🇹🇷 Ben konuşuyorum</span><small>bas, konuş, tekrar bas</small></button>
+    <button class="mic" id="micPL"><span>🇵🇱 Oni mówią</span><small>Onlar konuşuyor</small></button>
+  </div>
+  <button id="ask"><span class="mi">🤫 </span>Bana sor <span style="color:var(--dim);font-size:13px">(sadece sen duyarsın)</span></button>
+</div>
+
+<div class="overlay" id="book">
+  <div class="ohead"><h2>📖 Hazır cümleler</h2><button class="tabbtn" data-close="book">Kapat</button></div>
+  <div class="obody" id="bookBody"></div>
+</div>
+
+<div class="overlay" id="settings">
+  <div class="ohead"><h2>⚙️ Ayarlar</h2><button class="tabbtn" data-close="settings">Kapat</button></div>
+  <div class="obody">
+    <div class="field"><label for="apiKey">Claude API anahtarı (sadece bu telefonda saklanır)</label>
+      <input type="password" id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…">
+      <div style="margin-top:8px"><button class="btn" id="testBtn">Test</button><span id="testres"></span></div></div>
+    <div class="field"><label for="model">Model</label>
+      <select id="model"><option value="claude-opus-5-5">claude-opus-5-5</option><option value="claude-sonnet-5-5">claude-sonnet-5-5</option><option value="claude-haiku-5-5">claude-haiku-5-5</option></select></div>
+    <div class="field"><label for="ctx">Bağlam (çeviriyi iyileştirir; kız arkadaşının adını yaz)</label>
+      <textarea id="ctx"></textarea></div>
+    <label class="tog">Lehçe çeviriyi otomatik seslendir <input type="checkbox" id="autoPL"></label>
+    <label class="tog">Türkçe çeviriyi de seslendir <input type="checkbox" id="speakTR"></label>
+    <div class="field"><label for="rate">Konuşma hızı: <span id="rateVal"></span></label>
+      <input type="range" id="rate" min="0.6" max="1.3" step="0.05" style="width:100%"></div>
+    <div class="field"><label for="voice">Lehçe ses (pl-PL)</label>
+      <select id="voice"></select>
+      <div style="margin-top:8px"><button class="btn" id="voiceTest">Sesi dene</button></div></div>
+    <button class="btn danger" id="clearHist">Geçmişi temizle</button>
+  </div>
+</div>
+
+<div class="overlay" id="show"><div class="big" id="showText"></div><div class="hint">Kapatmak için dokun</div></div>
+
+<script>
+'use strict';
+/* ---------- constants ---------- */
+var API_URL = 'https://api.anthropic.com/v1/messages';
+var DEFAULT_CTX = "Ben Kadirhan, Türküm. Kız arkadaşım [isim]'nın Polonyalı ailesiyle ilk kez tanışıyorum. Kibar, sıcak ve doğal konuşmak istiyorum.";
+var PHRASES = [
+  ['Dzień dobry', 'İyi günler', 'ceyn dobrı'],
+  ['Miło mi Państwa poznać', 'Sizinle tanıştığıma çok memnun oldum', 'mivo mi panstva poznaç'],
+  ['Bardzo dziękuję', 'Çok teşekkür ederim', 'bardzo cenkuye'],
+  ['Dziękuję za zaproszenie', 'Davetiniz için teşekkürler', 'cenkuye za zaproşene'],
+  ['Smacznego', 'Afiyet olsun', 'smaçnego'],
+  ['To jest pyszne!', 'Bu çok lezzetli!', 'to yest pışne'],
+  ['Przepraszam, nie mówię po polsku', 'Kusura bakmayın, Lehçe bilmiyorum', 'pşeprasam, ne muvye po polsku'],
+  ['Uczę się polskiego', 'Lehçe öğreniyorum', 'uçen şen polskyego'],
+  ['Na zdrowie!', 'Şerefe!', 'na zdrovye'],
+  ['Mają Państwo piękny dom', 'Çok güzel bir eviniz var', 'mayon panstvo pyenknı dom'],
+  ['Tak', 'Evet', 'tak'],
+  ['Nie', 'Hayır', 'ne'],
+  ['Proszę', 'Lütfen, buyurun', 'proşe'],
+  ['Wszystko w porządku', 'Her şey yolunda', 'vşıstko v pojontku'],
+  ['Do widzenia', 'Hoşça kalın', 'do vidzenya'],
+  ['Bardzo mi miło', 'Çok memnun oldum', 'bardzo mi mivo']
+];
+
+var SYSTEM_PROMPT = [
+  'You are a live interpreter and private coach at a first meeting between a Turkish man and his girlfriend\'s Polish parents. The Turkish man speaks no Polish. His input is raw speech-recognition or typed text, so it may contain recognition errors.',
+  '',
+  'Rules:',
+  '- Translate the meaning naturally, not word for word. Keep the speaker\'s tone, register and intent.',
+  '- Polish output must be warm, polite and natural. Address the parents formally (Pan / Pani / Państwo) unless the user context says otherwise.',
+  '- Keep Polish short and easy to say aloud. Use plain wording a non-native speaker can attempt to repeat.',
+  '- Fix obvious speech-recognition errors using the context and recent conversation (names, topics) before translating.',
+  '- Never add content the speaker did not say, and never leave out anything meaningful.',
+  '- For Polish to Turkish, give a faithful Turkish rendering including tone (polite, joking, concerned, etc.). Natural Turkish, no commentary inside the translation.',
+  '- Turkish pronunciation (pronunciation_tr) means how to read the Polish aloud using Turkish letters: sz=ş, cz=ç, rz/ż=j, ł=v (soft w), w=v, ó/u=u, ę=en, ą=on, ń=ny, ś=ş, ć=ç, ch=h, y=ı, ie=ye, j=y, dz=c. Separate words with spaces; use hyphens between syllables only where it helps.',
+  '- Suggested replies must be short, polite, natural Polish that fits what the parents said and the user context, each with its Turkish meaning and a Turkish-letter reading.',
+  '- Private questions ("ask" mode) are from the Turkish man to you alone: answer in Turkish only, concise and practical, with etiquette tips where useful.',
+  '',
+  'Each request states a MODE:',
+  '- TR_TO_PL: translation = the Polish; pronunciation_tr = Turkish-letter reading of that Polish; suggestions = []; note = a very short Turkish cultural tip or "".',
+  '- PL_TO_TR: translation = the Turkish; pronunciation_tr = ""; suggestions = exactly 2 short natural Polish replies he could give; note = "" or a very short Turkish tip.',
+  '- ASK: translation = your Turkish answer; pronunciation_tr = ""; suggestions = []; note = "".',
+  '',
+  'Output only a single JSON object with the keys translation, pronunciation_tr, suggestions (array of {pl, tr, pron}), note. No markdown, no extra text.'
+].join('\n');
+
+var SCHEMA = {
+  type: 'object',
+  properties: {
+    translation: { type: 'string' },
+    pronunciation_tr: { type: 'string' },
+    suggestions: { type: 'array', items: { type: 'object', properties: { pl: { type: 'string' }, tr: { type: 'string' }, pron: { type: 'string' } }, required: ['pl', 'tr', 'pron'], additionalProperties: false } },
+    note: { type: 'string' }
+  },
+  required: ['translation', 'pronunciation_tr', 'suggestions', 'note'],
+  additionalProperties: false
+};
+
+/* ---------- state / storage ---------- */
+var $ = function (id) { return document.getElementById(id); };
+var store = {
+  get: function (k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+var settings = {
+  apiKey: '', model: 'claude-opus-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 0.95, voice: ''
+};
+function loadSettings() {
+  try { var s = JSON.parse(store.get('tl_settings', '{}')); for (var k in s) if (k in settings) settings[k] = s[k]; } catch (e) {}
+}
+function saveSettings() { store.set('tl_settings', JSON.stringify(settings)); }
+var convo = [];
+function loadHistory() { try { convo = JSON.parse(store.get('tl_history', '[]')) || []; } catch (e) { convo = []; } }
+function saveHistory() { store.set('tl_history', JSON.stringify(convo.slice(-60))); }
+
+var variant = 'full'; // 'full' or 'plain' (remembered for the session)
+var inputMode = 'tr'; // text box mode: tr | pl | ask
+var busy = false;
+
+/* ---------- request builder ---------- */
+function buildUserMessage(mode, text, hist, plain) {
+  var recent = hist.slice(-12).map(function (h) {
+    if (h.who === 'me') return 'Kadirhan (Turkish) said: ' + (h.tr || '') + '  =>  Polish: ' + (h.pl || '');
+    if (h.who === 'them') return 'Parents (Polish) said: ' + (h.pl || '') + '  =>  Turkish: ' + (h.tr || '');
+    return 'Kadirhan privately asked: ' + (h.q || '') + '  =>  your answer: ' + (h.tr || '');
+  }).join('\n');
+  var label = mode === 'tr2pl' ? 'TR_TO_PL (input is Turkish, translate to Polish)' : mode === 'pl2tr' ? 'PL_TO_TR (input is Polish, translate to Turkish)' : 'ASK (private question from Kadirhan, answer in Turkish)';
+  var msg = '';
+  if (recent) msg += 'Recent conversation:\n' + recent + '\n\n';
+  msg += 'MODE: ' + label + '\nInput: ' + text;
+  if (plain) msg += '\n\nReply with ONLY a raw JSON object with keys translation, pronunciation_tr, suggestions (array of {pl, tr, pron}), note. No markdown fences.';
+  return msg;
+}
+function buildRequest(mode, text, hist, plain, s) {
+  s = s || settings;
+  var system = SYSTEM_PROMPT + '\n\nUser context (from the user, Turkish):\n' + (s.ctx || '');
+  var headers = { 'x-api-key': s.apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' };
+  var body = { model: s.model, max_tokens: 2048, system: system, messages: [{ role: 'user', content: buildUserMessage(mode, text, hist, plain) }] };
+  if (!plain) {
+    headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+    body.output_config = { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } };
+    body.fallbacks = 'default';
+  } else {
+    body.output_config = { effort: 'low' };
+  }
+  return { headers: headers, body: body };
+}
+
+function TlError(msg, code) { this.message = msg; this.code = code; }
+TlError.prototype = Object.create(Error.prototype);
+
+function parseLenient(t) {
+  try { return JSON.parse(t); } catch (e) {}
+  var a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} }
+  return null;
+}
+function normalize(o) {
+  var sug = Array.isArray(o.suggestions) ? o.suggestions : [];
+  return {
+    translation: String(o.translation || ''), pronunciation_tr: String(o.pronunciation_tr || ''),
+    suggestions: sug.filter(function (x) { return x && x.pl; }).map(function (x) { return { pl: String(x.pl), tr: String(x.tr || ''), pron: String(x.pron || '') }; }),
+    note: String(o.note || '')
+  };
+}
+
+async function postOnce(req) {
+  var ctl = new AbortController();
+  var timer = setTimeout(function () { ctl.abort(); }, 25000);
+  try {
+    return await fetch(API_URL, { method: 'POST', headers: req.headers, body: JSON.stringify(req.body), signal: ctl.signal });
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new TlError('Zaman aşımı (25 sn). Tekrar dene.', 'timeout');
+    throw new TlError('Ağ hatası: internet bağlantısını kontrol et.', 'network');
+  } finally { clearTimeout(timer); }
+}
+function httpError(status) {
+  if (status === 401 || status === 403) return new TlError('API anahtarı hatalı (401). Ayarlardan kontrol et.', 'auth');
+  if (status === 429 || status === 529) return new TlError('Servis yoğun (' + status + '), birkaç saniye sonra tekrar dene.', 'busy');
+  if (status >= 500) return new TlError('Sunucu hatası (' + status + '). Tekrar dene.', 'server');
+  return new TlError('İstek reddedildi (HTTP ' + status + ').', 'http');
+}
+
+async function callClaude(mode, text) {
+  if (!settings.apiKey) throw new TlError('Önce Ayarlar bölümüne API anahtarını gir.', 'nokey');
+  var res = await postOnce(buildRequest(mode, text, convo, variant === 'plain'));
+  if (res.status === 400 && variant === 'full') {
+    res = await postOnce(buildRequest(mode, text, convo, true));
+    if (res.ok) variant = 'plain';
+  }
+  if (!res.ok) throw httpError(res.status);
+  var data;
+  try { data = await res.json(); } catch (e) { throw new TlError('Yanıt okunamadı.', 'parse'); }
+  if (data.stop_reason === 'refusal') throw new TlError('Model bu isteği yanıtlamadı (ret). Cümleyi farklı söyle.', 'refusal');
+  var txt = (data.content || []).filter(function (b) { return b && b.type === 'text'; }).map(function (b) { return b.text; }).join('');
+  var obj = parseLenient(txt);
+  if (!obj) throw new TlError('Yanıt çözülemedi. Tekrar dene.', 'parse');
+  return normalize(obj);
+}
+
+/* ---------- speech synthesis ---------- */
+var synth = window.speechSynthesis;
+var voices = [];
+var audioUnlocked = false;
+function loadVoices() {
+  if (!synth) return;
+  voices = synth.getVoices() || [];
+  renderVoices();
+}
+if (synth) { loadVoices(); if ('onvoiceschanged' in synth) synth.onvoiceschanged = loadVoices; setTimeout(loadVoices, 500); setTimeout(loadVoices, 1500); }
+function plVoices() { return voices.filter(function (v) { return /^pl([-_]|$)/i.test(v.lang); }); }
+function pickVoice(lang) {
+  if (lang !== 'pl-PL') return voices.find(function (v) { return /^tr([-_]|$)/i.test(v.lang); }) || null;
+  var list = plVoices();
+  if (settings.voice) { var s = list.find(function (v) { return v.voiceURI === settings.voice; }); if (s) return s; }
+  var pref = list.find(function (v) { return /enhanced|premium|zosia/i.test(v.name); });
+  return pref || list[0] || null;
+}
+function speak(text, lang) {
+  if (!synth || !text) return;
+  try {
+    synth.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = Number(settings.rate) || 0.95;
+    var v = pickVoice(lang); if (v) u.voice = v;
+    setTimeout(function () { synth.speak(u); }, 60);
+  } catch (e) {}
+}
+function stopSpeech() { try { if (synth) synth.cancel(); } catch (e) {} }
+function unlockAudio() {
+  if (audioUnlocked || !synth) return;
+  audioUnlocked = true;
+  try { var u = new SpeechSynthesisUtterance(''); u.volume = 0; synth.speak(u); } catch (e) {}
+}
+document.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
+
+/* ---------- speech recognition ---------- */
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+var rec = null, recMode = null, finalText = '', interimText = '', recErr = null;
+function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+function setLive(msg, cls) { $('livetxt').textContent = msg || ''; $('live').className = (busy ? 'busy ' : '') + (cls || ''); }
+function setBusy(b) { busy = b; $('live').classList.toggle('busy', b); }
+
+function startListening(mode) {
+  if (!SR) { focusText(); return; }
+  if (busy) return;
+  stopSpeech();
+  var lang = mode === 'tr2pl' || mode === 'ask' ? 'tr-TR' : 'pl-PL';
+  finalText = ''; interimText = ''; recErr = null; recMode = mode;
+  try {
+    rec = new SR();
+    rec.lang = lang; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.onresult = function (e) {
+      var f = '', i = '';
+      for (var k = 0; k < e.results.length; k++) { if (e.results[k].isFinal) f += e.results[k][0].transcript; else i += e.results[k][0].transcript; }
+      finalText = f; interimText = i;
+      setLive('🎙 ' + (f + ' ' + i).trim());
+    };
+    rec.onerror = function (e) {
+      recErr = e.error;
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setLive('Mikrofon izni yok. Ayarlar > Safari/Chrome > Mikrofon izni ver, sayfayı yenile.', 'err');
+      else if (e.error === 'no-speech') setLive('Ses duyulmadı. Tekrar dene.', 'err');
+      else if (e.error === 'audio-capture') setLive('Mikrofon bulunamadı.', 'err');
+      else if (e.error === 'network') setLive('Ses tanıma ağ hatası. Yazarak dene.', 'err');
+      else if (e.error !== 'aborted') setLive('Ses tanıma hatası: ' + e.error, 'err');
+    };
+    rec.onend = function () {
+      var m = recMode, t = (finalText || interimText).trim();
+      rec = null; recMode = null; updateMicUI();
+      if (t) { setLive(''); submit(m, t); } else if (!recErr) setLive('Ses duyulmadı. Tekrar dene.', 'err');
+    };
+    rec.start();
+    setLive('🎙 Dinliyorum…');
+    updateMicUI();
+  } catch (e) { rec = null; recMode = null; updateMicUI(); setLive('Ses tanıma başlatılamadı. Yazarak dene.', 'err'); }
+}
+function stopListening() { try { if (rec) rec.stop(); } catch (e) {} }
+function toggleMic(mode) {
+  if (rec) { var same = recMode === mode; stopListening(); if (same) return; return; }
+  startListening(mode);
+}
+function updateMicUI() {
+  $('micTR').classList.toggle('rec', recMode === 'tr2pl');
+  $('micPL').classList.toggle('rec', recMode === 'pl2tr');
+  $('ask').classList.toggle('rec', recMode === 'ask');
+}
+function focusText() { setLive('Klavyedeki mikrofonu kullan.'); $('txt').focus(); }
+
+/* ---------- conversation ---------- */
+var nextId = Date.now();
+async function submit(mode, text) {
+  text = (text || '').trim();
+  if (!text || busy) return;
+  setBusy(true); setLive('Çevriliyor…');
+  try {
+    var r = await callClaude(mode, text);
+    var item;
+    if (mode === 'tr2pl') item = { id: nextId++, who: 'me', tr: text, pl: r.translation, pron: r.pronunciation_tr, note: r.note, sug: [] };
+    else if (mode === 'pl2tr') item = { id: nextId++, who: 'them', pl: text, tr: r.translation, note: r.note, sug: r.suggestions };
+    else item = { id: nextId++, who: 'ask', q: text, tr: r.translation };
+    convo.push(item); saveHistory(); renderHistory();
+    setLive('');
+    if (item.who === 'me' && settings.autoPL) speak(item.pl, 'pl-PL');
+    if (item.who === 'them' && settings.speakTR) speak(item.tr, 'tr-TR');
+  } catch (e) { setLive(e.message || 'Hata', 'err'); }
+  finally { setBusy(false); }
+}
+
+function renderHistory() {
+  var h = $('history');
+  if (!convo.length) {
+    h.innerHTML = '<div class="empty">Alttaki 🇹🇷 düğmeye basıp Türkçe konuş, bitirince tekrar bas.<br>Ebeveynler konuşunca 🇵🇱 düğmeye bas.<br>Hazır cümleler için 📖 Kitap.</div>';
+    return;
+  }
+  var lastMe = -1;
+  convo.forEach(function (x, i) { if (x.who === 'me') lastMe = i; });
+  h.innerHTML = convo.map(function (x, i) {
+    if (x.who === 'me') return '<div class="msg me" data-i="' + i + '"><div class="small">🇹🇷 ' + esc(x.tr) + '</div><div class="pl" data-show="' + i + '">' + esc(x.pl) + '</div>' +
+      (x.pron ? '<div class="pron">🗣 ' + esc(x.pron) + '</div>' : '') + (x.note ? '<div class="note">💡 ' + esc(x.note) + '</div>' : '') +
+      '<div class="row"><button class="play" data-play="' + i + '" aria-label="Dinle">🔊</button><button class="play" data-show="' + i + '" aria-label="Göster">🔍 Göster</button></div></div>';
+    if (x.who === 'them') return '<div class="msg them" data-i="' + i + '"><div class="small">🇵🇱 ' + esc(x.pl) + '</div><div class="big-tr">' + esc(x.tr) + '</div>' +
+      (x.note ? '<div class="note">💡 ' + esc(x.note) + '</div>' : '') +
+      (x.sug || []).map(function (s, j) { return '<button class="sug" data-sug="' + i + ':' + j + '"><div class="p">🔊 ' + esc(s.pl) + '</div><div class="t">' + esc(s.tr) + '</div><div class="r">🗣 ' + esc(s.pron) + '</div></button>'; }).join('') +
+      '<div class="row"><button class="play" data-play="' + i + '" data-lang="tr" aria-label="Türkçe dinle">🔊 TR</button></div></div>';
+    return '<div class="msg ask"><div class="small">🤫 ' + esc(x.q) + '</div><div class="big-tr" style="font-size:20px">' + esc(x.tr) + '</div></div>';
+  }).join('');
+  h.scrollTop = h.scrollHeight;
+}
+
+$('history').addEventListener('click', function (e) {
+  var t = e.target.closest('[data-play],[data-show],[data-sug]');
+  if (!t) return;
+  if (t.dataset.play != null) { var it = convo[+t.dataset.play]; if (!it) return; if (t.dataset.lang === 'tr') speak(it.tr, 'tr-TR'); else speak(it.pl, 'pl-PL'); }
+  else if (t.dataset.show != null) { var s = convo[+t.dataset.show]; if (s) openShow(s.pl); }
+  else if (t.dataset.sug != null) {
+    var p = t.dataset.sug.split(':'), src = convo[+p[0]]; if (!src) return;
+    var sg = src.sug[+p[1]]; if (!sg) return;
+    speak(sg.pl, 'pl-PL');
+    convo.push({ id: nextId++, who: 'me', tr: sg.tr, pl: sg.pl, pron: sg.pron, note: '', sug: [] });
+    saveHistory(); renderHistory();
+  }
+});
+
+/* ---------- show mode / overlays ---------- */
+function openShow(t) { $('showText').textContent = t; $('show').classList.add('open'); }
+$('show').addEventListener('click', function () { $('show').classList.remove('open'); });
+function openOv(id) { $(id).classList.add('open'); }
+document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { $(b.dataset.close).classList.remove('open'); }); });
+$('bookBtn').onclick = function () { stopListening(); openOv('book'); };
+$('gearBtn').onclick = function () { stopListening(); openOv('settings'); };
+
+function renderBook() {
+  $('bookBody').innerHTML = PHRASES.map(function (p, i) {
+    return '<button class="phrase" data-ph="' + i + '"><div class="p">🔊 ' + esc(p[0]) + '</div><div class="t">' + esc(p[1]) + '</div><div class="r">🗣 ' + esc(p[2]) + '</div></button>';
+  }).join('');
+}
+$('bookBody').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-ph]'); if (!b) return;
+  speak(PHRASES[+b.dataset.ph][0], 'pl-PL');
+});
+
+/* ---------- settings UI ---------- */
+function renderVoices() {
+  var sel = $('voice'); if (!sel) return;
+  var list = plVoices();
+  sel.innerHTML = '<option value="">Otomatik (en iyi)</option>' + list.map(function (v) { return '<option value="' + esc(v.voiceURI) + '">' + esc(v.name) + ' (' + esc(v.lang) + ')</option>'; }).join('');
+  sel.value = settings.voice || '';
+  if (!list.length) sel.innerHTML = '<option value="">pl-PL ses bulunamadı (iOS: Ayarlar > Erişilebilirlik > Sesli İçerik > Sesler > Lehçe)</option>';
+}
+function fillSettings() {
+  $('apiKey').value = settings.apiKey; $('model').value = settings.model; $('ctx').value = settings.ctx;
+  $('autoPL').checked = !!settings.autoPL; $('speakTR').checked = !!settings.speakTR;
+  $('rate').value = settings.rate; $('rateVal').textContent = Number(settings.rate).toFixed(2);
+  renderVoices();
+}
+function bindSettings() {
+  $('apiKey').oninput = function () { settings.apiKey = this.value.trim(); saveSettings(); };
+  $('model').onchange = function () { settings.model = this.value; saveSettings(); };
+  $('ctx').oninput = function () { settings.ctx = this.value; saveSettings(); };
+  $('autoPL').onchange = function () { settings.autoPL = this.checked; saveSettings(); };
+  $('speakTR').onchange = function () { settings.speakTR = this.checked; saveSettings(); };
+  $('rate').oninput = function () { settings.rate = Number(this.value); $('rateVal').textContent = settings.rate.toFixed(2); saveSettings(); };
+  $('voice').onchange = function () { settings.voice = this.value; saveSettings(); };
+  $('voiceTest').onclick = function () { speak('Dzień dobry, miło mi Państwa poznać', 'pl-PL'); };
+  $('clearHist').onclick = function () { convo = []; saveHistory(); renderHistory(); setLive('Geçmiş temizlendi.'); };
+  $('testBtn').onclick = async function () {
+    var r = $('testres'); r.textContent = '…'; r.style.color = 'var(--dim)';
+    try {
+      if (!settings.apiKey) throw new TlError('Anahtar boş.', 'nokey');
+      var req = buildRequest('tr2pl', 'Merhaba', [], variant === 'plain');
+      req.body.max_tokens = 200;
+      var res = await postOnce(req);
+      if (res.status === 400 && variant === 'full') { res = await postOnce((function () { var q = buildRequest('tr2pl', 'Merhaba', [], true); q.body.max_tokens = 200; return q; })()); if (res.ok) variant = 'plain'; }
+      if (!res.ok) throw httpError(res.status);
+      r.textContent = 'OK ✓ (' + settings.model + ')'; r.style.color = 'var(--accent)';
+    } catch (e) { r.textContent = e.message; r.style.color = '#ff8a8e'; }
+  };
+}
+
+/* ---------- text input ---------- */
+document.querySelectorAll('#langseg button').forEach(function (b) {
+  b.onclick = function () {
+    inputMode = b.dataset.m;
+    document.querySelectorAll('#langseg button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    $('txt').lang = inputMode === 'pl' ? 'pl' : 'tr';
+    $('txt').placeholder = inputMode === 'tr' ? 'Türkçe yaz → Lehçe…' : inputMode === 'pl' ? 'Polski tekst → Türkçe…' : '🤫 Bana sor (Türkçe)…';
+  };
+});
+function sendText() {
+  var v = $('txt').value.trim(); if (!v) return;
+  $('txt').value = '';
+  submit(inputMode === 'tr' ? 'tr2pl' : inputMode === 'pl' ? 'pl2tr' : 'ask', v);
+}
+$('send').onclick = sendText;
+$('txt').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendText(); } });
+$('micTR').onclick = function () { toggleMic('tr2pl'); };
+$('micPL').onclick = function () { toggleMic('pl2tr'); };
+$('ask').onclick = function () { if (SR) toggleMic('ask'); else { document.querySelector('#langseg [data-m=ask]').click(); focusText(); } };
+
+/* ---------- init ---------- */
+loadSettings(); loadHistory();
+if (!SR) document.body.classList.add('nospeech');
+fillSettings(); bindSettings(); renderBook(); renderHistory();
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
+window.__tl = { buildRequest: buildRequest, settings: settings, parseLenient: parseLenient, callClaude: callClaude, convo: function () { return convo; } };
+</script>
+</body>
+</html>
