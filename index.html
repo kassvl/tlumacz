@@ -155,6 +155,11 @@ header h1{font-size:17px;margin:0;flex:1;font-weight:600}
       <select id="voice"></select>
       <div style="margin-top:6px;font-size:13px;color:var(--dim)">Daha doğal ses için: iPhone Ayarlar → Erişilebilirlik → Seslendirilen İçerik → Sesler → Lehçe → Premium/Geliştirilmiş bir ses indir.</div>
       <div style="margin-top:8px"><button class="btn" id="voiceTest">Sesi dene</button></div></div>
+    <div class="field"><label for="importCode">Safari ⇄ ana ekran uygulaması aktarımı</label>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:6px">Ana ekrandaki uygulama Safari'den ayrı hafıza kullanır. Safari'de "Ayarları kopyala"ya bas, sonra ana ekran uygulamasında kodu aşağıya yapıştır. Kod anahtarlarını içerir, kimseyle paylaşma.</div>
+      <button class="btn" id="exportBtn">📋 Ayarları kopyala</button>
+      <input type="text" id="importCode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Kodu buraya yapıştır (TLM1:…)" style="margin-top:8px">
+      <div id="importRes" style="font-size:13px;margin-top:6px"></div></div>
     <button class="btn danger" id="clearHist">Geçmişi temizle</button>
   </div>
 </div>
@@ -230,8 +235,11 @@ var store = {
 var settings = {
   apiKey: '', model: 'claude-sonnet-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 1.0, voice: '', silence: 0.7, engine: 'builtin', elKey: '', elVoice: ''
 };
+// iOS paste can carry spaces, line breaks, zero-width characters or quotes; API keys never contain them
+function cleanKey(v) { return String(v || '').replace(/[\s\u200B-\u200D\u2060\uFEFF"'`\u201C\u201D\u2018\u2019]/g, ''); }
 function loadSettings() {
   try { var s = JSON.parse(store.get('tl_settings', '{}')); for (var k in s) if (k in settings) settings[k] = s[k]; } catch (e) {}
+  settings.apiKey = cleanKey(settings.apiKey); settings.elKey = cleanKey(settings.elKey);
   if (!store.get('tl_model_v2', '')) { if (settings.model === 'claude-opus-5-5') settings.model = 'claude-sonnet-5-5'; store.set('tl_model_v2', '1'); saveSettings(); }
 }
 function saveSettings() { store.set('tl_settings', JSON.stringify(settings)); }
@@ -307,7 +315,7 @@ async function postOnce(req) {
   } finally { clearTimeout(timer); }
 }
 function httpError(status) {
-  if (status === 401 || status === 403) return new TlError('API anahtarı hatalı (401). Ayarlardan kontrol et.', 'auth');
+  if (status === 401 || status === 403) return new TlError('Claude anahtarı hatalı (' + status + '). Ayarlardan Claude anahtarını yeniden yapıştır.', 'auth');
   if (status === 429 || status === 529) return new TlError('Servis yoğun (' + status + '), birkaç saniye sonra tekrar dene.', 'busy');
   if (status >= 500) return new TlError('Sunucu hatası (' + status + '). Tekrar dene.', 'server');
   return new TlError('İstek reddedildi (HTTP ' + status + ').', 'http');
@@ -531,7 +539,8 @@ async function elHttpError(res) {
   var d = null; try { d = await res.json(); } catch (e) {}
   var st = d && d.detail && (d.detail.status || d.detail.code) || '';
   if (/quota/i.test(st) || res.status === 402) return new TlError('kota/bakiye bitti', 'quota');
-  if (res.status === 401 || res.status === 403) return new TlError('anahtar hatalı (' + res.status + ')', 'auth');
+  if (/permission/i.test(st)) return new TlError('ElevenLabs anahtarının izni eksik (' + st + '): elevenlabs.io > API Keys > anahtarda Text to Speech ve Voices iznini aç', 'auth');
+  if (res.status === 401 || res.status === 403) return new TlError('ElevenLabs anahtarı hatalı (' + res.status + (st ? ', ' + st : '') + ')', 'auth');
   if (res.status === 429) return new TlError('kota/bakiye bitti veya çok fazla istek (429)', 'quota');
   if (res.status === 404 || res.status === 400 || res.status === 422) return new TlError('ses ID hatalı veya istek reddedildi (' + res.status + ')', 'http');
   return new TlError('sunucu hatası (' + res.status + ')', 'server');
@@ -813,7 +822,7 @@ function fillSettings() {
   renderVoices();
 }
 function bindSettings() {
-  $('apiKey').oninput = function () { settings.apiKey = this.value.trim(); saveSettings(); clearTimeout(warmTimer); warmTimer = setTimeout(function () { warmUp(true); }, 800); };
+  $('apiKey').oninput = function () { settings.apiKey = cleanKey(this.value); saveSettings(); clearTimeout(warmTimer); warmTimer = setTimeout(function () { warmUp(true); }, 800); };
   $('model').onchange = function () { settings.model = this.value; saveSettings(); };
   $('ctx').oninput = function () { settings.ctx = this.value; saveSettings(); };
   $('autoPL').onchange = function () { settings.autoPL = this.checked; saveSettings(); };
@@ -823,7 +832,7 @@ function bindSettings() {
   $('voice').onchange = function () { settings.voice = this.value; saveSettings(); };
   $('voiceTest').onclick = function () { ensureCtx(); speak('Dzień dobry, miło mi Państwa poznać.', 'pl-PL'); };
   $('engine').onchange = function () { settings.engine = this.value; saveSettings(); updateEngineUI(); ensureCtx(); warmEleven(true); };
-  $('elKey').oninput = function () { settings.elKey = this.value.trim(); saveSettings(); updateEngineUI(); };
+  $('elKey').oninput = function () { settings.elKey = cleanKey(this.value); saveSettings(); updateEngineUI(); };
   $('elKey').onchange = function () { warmEleven(true); };
   $('elVoice').onchange = function () { if (this.value) setElVoice(this.value); };
   $('elVoiceId').onchange = function () { setElVoice(this.value); };
@@ -843,6 +852,23 @@ function bindSettings() {
       renderElVoices();
       r.textContent = elList.length + ' ses bulundu ✓'; r.style.color = 'var(--accent)';
     } catch (e) { r.textContent = 'Hata: ' + (e.message || 'bilinmeyen'); r.style.color = '#ff8a8e'; }
+  };
+  $('exportBtn').onclick = function () {
+    var code = 'TLM1:' + btoa(unescape(encodeURIComponent(JSON.stringify(settings))));
+    function ok() { $('importRes').textContent = '✅ Kopyalandı. Şimdi ana ekran uygulamasını aç, Ayarlar > kodu yapıştır.'; }
+    function manual() { $('importCode').value = code; $('importCode').select(); $('importRes').textContent = 'Kopyalanamadı: kutudaki kodu seçip kopyala.'; }
+    try { navigator.clipboard.writeText(code).then(ok, manual); } catch (e) { manual(); }
+  };
+  $('importCode').oninput = function () {
+    var v = cleanKey(this.value); if (v.indexOf('TLM1:') !== 0) return;
+    try {
+      var s2 = JSON.parse(decodeURIComponent(escape(atob(v.slice(5)))));
+      for (var k in s2) if (k in settings) settings[k] = s2[k];
+      settings.apiKey = cleanKey(settings.apiKey); settings.elKey = cleanKey(settings.elKey);
+      saveSettings(); this.value = '';
+      $('importRes').textContent = '✅ Ayarlar ve anahtarlar aktarıldı. Uygulama yenileniyor…';
+      setTimeout(function () { location.reload(); }, 900);
+    } catch (e) { $('importRes').textContent = 'Kod okunamadı, tamamını kopyaladığından emin ol.'; }
   };
   $('clearHist').onclick = function () { convo = []; saveHistory(); renderHistory(); setLive('Geçmiş temizlendi.'); };
   $('testBtn').onclick = async function () {
