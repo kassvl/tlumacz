@@ -126,7 +126,7 @@ header h1{font-size:17px;margin:0;flex:1;font-weight:600}
       <input type="password" id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-…">
       <div style="margin-top:8px"><button class="btn" id="testBtn">Test</button><span id="testres"></span></div></div>
     <div class="field"><label for="model">Model</label>
-      <select id="model"><option value="claude-opus-5-5">claude-opus-5-5</option><option value="claude-sonnet-5-5">claude-sonnet-5-5</option><option value="claude-haiku-5-5">claude-haiku-5-5</option></select></div>
+      <select id="model"><option value="claude-sonnet-5-5">Sonnet 5.5 (önerilen, ucuz)</option><option value="claude-haiku-5-5">Haiku 5.5 (en ucuz, en hızlı)</option><option value="claude-opus-5-5">Opus 5.5 (en iyi, pahalı)</option></select></div>
     <div class="field"><label for="ctx">Bağlam (çeviriyi iyileştirir; kız arkadaşının adını yaz)</label>
       <textarea id="ctx"></textarea></div>
     <label class="tog">Lehçe çeviriyi otomatik seslendir <input type="checkbox" id="autoPL"></label>
@@ -207,10 +207,11 @@ var store = {
   set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
 var settings = {
-  apiKey: '', model: 'claude-opus-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 0.95, voice: ''
+  apiKey: '', model: 'claude-sonnet-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 0.95, voice: ''
 };
 function loadSettings() {
   try { var s = JSON.parse(store.get('tl_settings', '{}')); for (var k in s) if (k in settings) settings[k] = s[k]; } catch (e) {}
+  if (!store.get('tl_model_v2', '')) { if (settings.model === 'claude-opus-5-5') settings.model = 'claude-sonnet-5-5'; store.set('tl_model_v2', '1'); saveSettings(); }
 }
 function saveSettings() { store.set('tl_settings', JSON.stringify(settings)); }
 var convo = [];
