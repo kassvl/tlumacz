@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tłumacz">
 <link rel="preconnect" href="https://api.anthropic.com" crossorigin>
+<link rel="preconnect" href="https://api.elevenlabs.io" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -82,6 +83,7 @@ header h1{font-size:17px;margin:0;flex:1;font-weight:600}
 #show{background:#000;z-index:30;align-items:center;justify-content:center;text-align:center;padding:20px}
 #show .big{font-size:min(15vw,90px);font-weight:700;line-height:1.15;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
 #show .hint{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));color:#666;font-size:14px}
+#toast{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:40;background:var(--panel2);border:1px solid var(--amber);color:var(--amber);border-radius:12px;padding:10px 12px;font-size:13px;display:none;pointer-events:none}
 .nosr{display:none}
 .nospeech #mics,.nospeech #ask .mi{display:none}
 .nospeech #textrow{margin-bottom:0}
@@ -136,6 +138,19 @@ header h1{font-size:17px;margin:0;flex:1;font-weight:600}
       <input type="range" id="rate" min="0.6" max="1.3" step="0.05" style="width:100%"></div>
     <div class="field"><label for="silence">Sessizlik süresi (konuşma bitti sayılır): <span id="silenceVal"></span></label>
       <input type="range" id="silence" min="0.5" max="2" step="0.1" style="width:100%"></div>
+    <div class="field"><label for="engine">Ses motoru</label>
+      <select id="engine"><option value="builtin">iPhone sesi (ücretsiz)</option><option value="eleven">ElevenLabs (daha insansı)</option></select>
+      <div id="elhint" style="display:none;margin-top:6px;font-size:13px;color:var(--amber)">ElevenLabs için aşağıya API anahtarı ve ses seç; yoksa iPhone sesi kullanılır.</div>
+      <div id="elbox" style="display:none;margin-top:10px">
+        <label for="elKey" style="display:block;font-size:14px;color:var(--dim);margin-bottom:6px">ElevenLabs API anahtarı (sadece bu telefonda saklanır)</label>
+        <input type="password" id="elKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk_…">
+        <div style="margin-top:8px"><button class="btn" id="elVoices">Sesleri getir</button><span id="elres" style="margin-left:10px;font-size:14px"></span></div>
+        <label for="elVoice" style="display:block;font-size:14px;color:var(--dim);margin:12px 0 6px">ElevenLabs sesi</label>
+        <select id="elVoice"></select>
+        <label for="elVoiceId" style="display:block;font-size:14px;color:var(--dim);margin:12px 0 6px">veya ses ID'sini yapıştır</label>
+        <input type="text" id="elVoiceId" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="voice_id">
+        <div style="margin-top:8px"><button class="btn" id="elTest">Sesi dene</button></div>
+      </div></div>
     <div class="field"><label for="voice">Lehçe ses (pl-PL)</label>
       <select id="voice"></select>
       <div style="margin-top:6px;font-size:13px;color:var(--dim)">Daha doğal ses için: iPhone Ayarlar → Erişilebilirlik → Seslendirilen İçerik → Sesler → Lehçe → Premium/Geliştirilmiş bir ses indir.</div>
@@ -144,6 +159,7 @@ header h1{font-size:17px;margin:0;flex:1;font-weight:600}
   </div>
 </div>
 
+<div id="toast"></div>
 <div class="overlay" id="show"><div class="big" id="showText"></div><div class="hint">Kapatmak için dokun</div></div>
 
 <script>
@@ -212,7 +228,7 @@ var store = {
   set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
 var settings = {
-  apiKey: '', model: 'claude-sonnet-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 1.0, voice: '', silence: 0.7
+  apiKey: '', model: 'claude-sonnet-5-5', ctx: DEFAULT_CTX, autoPL: true, speakTR: false, rate: 1.0, voice: '', silence: 0.7, engine: 'builtin', elKey: '', elVoice: ''
 };
 function loadSettings() {
   try { var s = JSON.parse(store.get('tl_settings', '{}')); for (var k in s) if (k in settings) settings[k] = s[k]; } catch (e) {}
@@ -398,6 +414,7 @@ async function callClaude(mode, text, onPartial) {
 /* Warm-up: same request shape as a real call (max_tokens 16) so TLS, CORS preflight and the schema grammar are ready. */
 var lastWarm = 0, warmTimer = null;
 function warmUp(force) {
+  warmEleven(force);
   if (!settings.apiKey) return;
   var now = Date.now();
   if (!force && now - lastWarm < 240000) return;
@@ -407,6 +424,14 @@ function warmUp(force) {
     req.body.max_tokens = 16;
     postOnce(req).then(function (res) { return res.text(); }).catch(function () {});
   } catch (e) {}
+}
+var lastElWarm = 0;
+function warmEleven(force) { // cheap GET, no TTS credits: opens the TLS connection
+  if (!useEleven()) return;
+  var now = Date.now();
+  if (!force && now - lastElWarm < 240000) return;
+  lastElWarm = now;
+  try { fetch(EL_BASE + '/v1/voices/' + encodeURIComponent(settings.elVoice), { headers: { 'xi-api-key': settings.elKey } }).then(function (r) { return r.text(); }).catch(function () {}); } catch (e) {}
 }
 document.addEventListener('visibilitychange', function () { if (!document.hidden) warmUp(false); });
 
@@ -429,46 +454,149 @@ function pickVoice(lang) {
   for (var k = 0; k < order.length; k++) { var f = list.find(function (v) { return order[k].test(v.name); }); if (f) return f; }
   return list[0] || null;
 }
-function speak(text, lang) {
-  if (!synth || !text) return;
-  try {
-    stopSpeech();
-    var u = new SpeechSynthesisUtterance(text);
-    u.lang = lang; u.rate = Number(settings.rate) || 1.0;
-    var v = pickVoice(lang); if (v) u.voice = v;
-    setTimeout(function () { synth.speak(u); }, 60);
-  } catch (e) {}
+var spKeep = [], spQ = [], spPlaying = false, spGen = 0, CHUNK_PAUSE = 150, spSrc = null;
+function makeUtt(text, lang) {
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = lang; u.rate = Number(settings.rate) || 1.0;
+  var v = pickVoice(lang); if (v) u.voice = v;
+  return u;
 }
-var spKeep = [], spQ = [], spPlaying = false, spGen = 0, CHUNK_PAUSE = 150;
-function nextChunk(gen) {
-  if (gen !== spGen) return;
-  var u = spQ.shift();
-  if (!u) { spPlaying = false; return; }
+function playBuiltin(it, gen, adv) {
+  var u;
+  try { u = it.u || makeUtt(it.text, it.lang); } catch (e) { adv(); return; }
+  if (!synth) { adv(); return; }
   var done = false;
-  function adv() { if (done) return; done = true; setTimeout(function () { nextChunk(gen); }, CHUNK_PAUSE); }
-  u.onend = adv; u.onerror = adv;
+  function fin() { if (done) return; done = true; adv(); }
+  u.onend = fin; u.onerror = fin;
   var started = false; u.onstart = function () { started = true; };
   spKeep.push(u); if (spKeep.length > 20) spKeep.shift(); // iOS drops events of garbage-collected utterances
   function go(waited) {
     if (gen !== spGen) return;
     // iOS keeps the audio session in record mode until recognition has really ended; speaking earlier is silent
     if (recLive && waited < 1000) { setTimeout(function () { go(waited + 50); }, 50); return; }
-    try { if (synth.paused) synth.resume(); synth.speak(u); } catch (e) { adv(); return; }
+    try { if (synth.paused) synth.resume(); synth.speak(u); } catch (e) { fin(); return; }
     setTimeout(function () { // watchdog: iOS sometimes swallows a non-gesture utterance without error
       if (gen !== spGen || started || done || synth.speaking) return;
-      try { synth.cancel(); synth.speak(u); } catch (e) { adv(); }
+      try { synth.cancel(); synth.speak(u); } catch (e) { fin(); }
     }, 1200);
   }
   go(0);
 }
+function nextChunk(gen) {
+  if (gen !== spGen) return;
+  var it = spQ.shift();
+  if (!it) { spPlaying = false; return; }
+  var done = false;
+  function adv() { if (done) return; done = true; setTimeout(function () { nextChunk(gen); }, CHUNK_PAUSE); }
+  if (!it.p) { playBuiltin(it, gen, adv); return; }
+  function go(waited) {
+    if (gen !== spGen) return;
+    if (recLive && waited < 1000) { setTimeout(function () { go(waited + 50); }, 50); return; }
+    it.p.then(function (buf) { if (gen !== spGen) return; return playBuffer(buf, gen, adv); })
+      .catch(function (err) { if (gen !== spGen) return; elFallbackNote(err); playBuiltin(it, gen, adv); });
+  }
+  go(0);
+}
 function queueSpeak(text, lang) { // no cancel: chunks of one turn play in order with a short pause
-  if (!synth || !text) return;
+  if (!text) return;
+  var it;
+  if (useEleven()) { it = { text: text, lang: lang, p: elSpeech(text, lang) }; it.p.catch(function () {}); } // fetch starts now, playback stays ordered
+  else { if (!synth) return; try { it = { text: text, lang: lang, u: makeUtt(text, lang) }; } catch (e) { return; } }
+  spQ.push(it);
+  if (!spPlaying) { spPlaying = true; nextChunk(spGen); }
+}
+
+/* ---------- ElevenLabs (optional) ---------- */
+var EL_BASE = 'https://api.elevenlabs.io', EL_MODEL = 'eleven_flash_v2_5';
+var actx = null, silentDone = false, elCache = new Map(), elNoted = false, toastTimer = null;
+function useEleven() { return settings.engine === 'eleven' && !!settings.elKey && !!settings.elVoice && !!(window.AudioContext || window.webkitAudioContext); }
+function ensureCtx() { // call inside a user gesture; cheap when already running
+  if (settings.engine !== 'eleven') return;
   try {
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    if (!actx) actx = new AC();
+    if (actx.state !== 'running') { var p = actx.resume(); if (p && p.catch) p.catch(function () {}); }
+    if (!silentDone) { var b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(0); silentDone = true; }
+  } catch (e) {}
+}
+function showToast(msg) {
+  var t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.style.display = 'none'; }, 6000);
+}
+function elFallbackNote(err) {
+  if (elNoted) return; elNoted = true;
+  showToast('ElevenLabs hatası, iPhone sesine geçildi: ' + ((err && err.message) || 'bilinmeyen hata'));
+}
+async function elHttpError(res) {
+  var d = null; try { d = await res.json(); } catch (e) {}
+  var st = d && d.detail && (d.detail.status || d.detail.code) || '';
+  if (/quota/i.test(st) || res.status === 402) return new TlError('kota/bakiye bitti', 'quota');
+  if (res.status === 401 || res.status === 403) return new TlError('anahtar hatalı (' + res.status + ')', 'auth');
+  if (res.status === 429) return new TlError('kota/bakiye bitti veya çok fazla istek (429)', 'quota');
+  if (res.status === 404 || res.status === 400 || res.status === 422) return new TlError('ses ID hatalı veya istek reddedildi (' + res.status + ')', 'http');
+  return new TlError('sunucu hatası (' + res.status + ')', 'server');
+}
+function elNetErr(e) { return e instanceof TlError ? e : new TlError(e && e.name === 'AbortError' ? 'zaman aşımı' : 'ağ hatası', 'network'); }
+function elSpeed() { return Math.min(1.2, Math.max(0.7, Number(settings.rate) || 1)); }
+async function decodeMp3(ab) {
+  return await new Promise(function (ok, bad) {
+    var p = actx.decodeAudioData(ab, ok, bad); // callback form for old Safari, promise form otherwise
+    if (p && p.then) p.then(ok, bad);
+  });
+}
+function elSpeech(text, lang) {
+  var key = lang + '|' + settings.elVoice + '|' + elSpeed() + '|' + text;
+  if (elCache.has(key)) { var c = elCache.get(key); elCache.delete(key); elCache.set(key, c); return Promise.resolve(c); }
+  return (async function () {
+    ensureCtxSoft();
+    var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 4000), res;
+    var body = { text: text, model_id: EL_MODEL, language_code: lang === 'pl-PL' ? 'pl' : 'tr' };
+    if (elSpeed() !== 1) body.voice_settings = { speed: elSpeed() };
+    try {
+      res = await fetch(EL_BASE + '/v1/text-to-speech/' + encodeURIComponent(settings.elVoice) + '/stream?output_format=mp3_44100_64&optimize_streaming_latency=3', {
+        method: 'POST', signal: ctl.signal,
+        headers: { 'xi-api-key': settings.elKey, 'content-type': 'application/json', 'accept': 'audio/mpeg' },
+        body: JSON.stringify(body)
+      });
+    } catch (e) { clearTimeout(timer); throw elNetErr(e); }
+    clearTimeout(timer);
+    if (!res.ok) throw await elHttpError(res);
+    var ab;
+    timer = setTimeout(function () { ctl.abort(); }, 6000);
+    try { ab = await res.arrayBuffer(); } catch (e) { throw elNetErr(e); } finally { clearTimeout(timer); }
+    if (!actx) throw new TlError('ses motoru hazır değil', 'ctx');
+    var buf;
+    try { buf = await decodeMp3(ab); } catch (e) { throw new TlError('ses çözülemedi', 'decode'); }
+    elCache.set(key, buf); if (elCache.size > 30) elCache.delete(elCache.keys().next().value);
+    return buf;
+  })();
+}
+function ensureCtxSoft() { // outside a gesture: only create (decoding needs it); unlock happens on taps
+  try { var AC = window.AudioContext || window.webkitAudioContext; if (AC && !actx) actx = new AC(); } catch (e) {}
+}
+async function playBuffer(buf, gen, adv) {
+  if (!actx) throw new TlError('ses motoru hazır değil', 'ctx');
+  if (actx.state !== 'running') {
+    try { await Promise.race([actx.resume(), new Promise(function (r) { setTimeout(r, 600); })]); } catch (e) {}
+  }
+  if (gen !== spGen) return;
+  var src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination);
+  var fired = false;
+  function fin() { if (fired) return; fired = true; if (spSrc === src) spSrc = null; adv(); }
+  src.onended = fin;
+  spSrc = src; src.start(0);
+  setTimeout(function () { if (!fired && gen === spGen) fin(); }, Math.round(buf.duration * 1000) + 3000); // watchdog: suspended context never ends
+}
+function speak(text, lang) {
+  if (!text) return;
+  if (useEleven()) { stopSpeech(); ensureCtx(); queueSpeak(text, lang); return; }
+  if (!synth) return;
+  try {
+    stopSpeech();
     var u = new SpeechSynthesisUtterance(text);
     u.lang = lang; u.rate = Number(settings.rate) || 1.0;
     var v = pickVoice(lang); if (v) u.voice = v;
-    spQ.push(u);
-    if (!spPlaying) { spPlaying = true; nextChunk(spGen); }
+    setTimeout(function () { synth.speak(u); }, 60);
   } catch (e) {}
 }
 function makeSpeaker(mode) {
@@ -488,8 +616,9 @@ function makeSpeaker(mode) {
     finish: function (t) { if (!on || closed) return; closed = true; say(t.slice(done)); }
   };
 }
-function stopSpeech() { spGen++; spQ = []; spPlaying = false; try { if (synth) synth.cancel(); } catch (e) {} }
+function stopSpeech() { spGen++; spQ = []; spPlaying = false; try { if (spSrc) { spSrc.onended = null; spSrc.stop(); } } catch (e) {} spSrc = null; try { if (synth) synth.cancel(); } catch (e) {} }
 function unlockAudio() {
+  ensureCtx();
   if (!synth || synth.speaking || synth.pending) return;
   audioUnlocked = true;
   try { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.rate = 2; synth.speak(u); } catch (e) {}
@@ -658,11 +787,29 @@ function renderVoices() {
   sel.value = settings.voice || '';
   if (!list.length) sel.innerHTML = '<option value="">pl-PL ses bulunamadı (iOS: Ayarlar > Erişilebilirlik > Sesli İçerik > Sesler > Lehçe)</option>';
 }
+var elList = [];
+function updateEngineUI() {
+  var el = settings.engine === 'eleven';
+  $('elbox').style.display = el ? 'block' : 'none';
+  $('elhint').style.display = el && !(settings.elKey && settings.elVoice) ? 'block' : 'none';
+}
+function renderElVoices() {
+  var sel = $('elVoice');
+  sel.innerHTML = '<option value="">Ses seç…</option>' + elList.map(function (v) {
+    var l = v.labels || {}, extra = [l.accent, l.language, l.gender].filter(Boolean).join(', ');
+    return '<option value="' + esc(v.voice_id) + '">' + esc(v.name) + (extra ? ' (' + esc(extra) + ')' : '') + '</option>';
+  }).join('');
+  if (settings.elVoice && !elList.some(function (v) { return v.voice_id === settings.elVoice; })) sel.insertAdjacentHTML('beforeend', '<option value="' + esc(settings.elVoice) + '">' + esc(settings.elVoice) + '</option>');
+  sel.value = settings.elVoice || '';
+}
+function setElVoice(id) { settings.elVoice = id.trim(); saveSettings(); $('elVoiceId').value = settings.elVoice; renderElVoices(); updateEngineUI(); warmEleven(true); }
 function fillSettings() {
   $('apiKey').value = settings.apiKey; $('model').value = settings.model; $('ctx').value = settings.ctx;
   $('autoPL').checked = !!settings.autoPL; $('speakTR').checked = !!settings.speakTR;
   $('silence').value = settings.silence; $('silenceVal').textContent = Number(settings.silence).toFixed(1) + ' sn';
   $('rate').value = settings.rate; $('rateVal').textContent = Number(settings.rate).toFixed(2);
+  $('engine').value = settings.engine; $('elKey').value = settings.elKey; $('elVoiceId').value = settings.elVoice;
+  renderElVoices(); updateEngineUI();
   renderVoices();
 }
 function bindSettings() {
@@ -674,7 +821,29 @@ function bindSettings() {
   $('rate').oninput = function () { settings.rate = Number(this.value); $('rateVal').textContent = settings.rate.toFixed(2); saveSettings(); };
   $('silence').oninput = function () { settings.silence = Number(this.value); $('silenceVal').textContent = settings.silence.toFixed(1) + ' sn'; saveSettings(); };
   $('voice').onchange = function () { settings.voice = this.value; saveSettings(); };
-  $('voiceTest').onclick = function () { speak('Dzień dobry, miło mi Państwa poznać', 'pl-PL'); };
+  $('voiceTest').onclick = function () { ensureCtx(); speak('Dzień dobry, miło mi Państwa poznać.', 'pl-PL'); };
+  $('engine').onchange = function () { settings.engine = this.value; saveSettings(); updateEngineUI(); ensureCtx(); warmEleven(true); };
+  $('elKey').oninput = function () { settings.elKey = this.value.trim(); saveSettings(); updateEngineUI(); };
+  $('elKey').onchange = function () { warmEleven(true); };
+  $('elVoice').onchange = function () { if (this.value) setElVoice(this.value); };
+  $('elVoiceId').onchange = function () { setElVoice(this.value); };
+  $('elTest').onclick = function () { ensureCtx(); elNoted = false; speak('Dzień dobry, miło mi Państwa poznać.', 'pl-PL'); };
+  $('elVoices').onclick = async function () {
+    var r = $('elres'); r.textContent = '…'; r.style.color = 'var(--dim)';
+    try {
+      if (!settings.elKey) throw new TlError('anahtar boş', 'nokey');
+      var res;
+      try { res = await fetch(EL_BASE + '/v1/voices', { headers: { 'xi-api-key': settings.elKey } }); } catch (e) { throw new TlError('ağ hatası: internet bağlantısını kontrol et', 'network'); }
+      if (!res.ok) throw await elHttpError(res);
+      var d = await res.json();
+      elList = (d.voices || []).slice().sort(function (a, b) {
+        function pl(v) { var l = v.labels || {}; return /pol|^pl/i.test((l.language || '') + ' ' + (l.accent || '')) || (v.verified_languages || []).some(function (x) { return x.language === 'pl'; }) ? 0 : 1; }
+        return pl(a) - pl(b);
+      });
+      renderElVoices();
+      r.textContent = elList.length + ' ses bulundu ✓'; r.style.color = 'var(--accent)';
+    } catch (e) { r.textContent = 'Hata: ' + (e.message || 'bilinmeyen'); r.style.color = '#ff8a8e'; }
+  };
   $('clearHist').onclick = function () { convo = []; saveHistory(); renderHistory(); setLive('Geçmiş temizlendi.'); };
   $('testBtn').onclick = async function () {
     var r = $('testres'); r.textContent = '…'; r.style.color = 'var(--dim)';
@@ -706,9 +875,9 @@ function sendText() {
 }
 $('send').onclick = sendText;
 $('txt').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendText(); } });
-$('micTR').onclick = function () { toggleMic('tr2pl'); };
-$('micPL').onclick = function () { toggleMic('pl2tr'); };
-$('ask').onclick = function () { if (SR) toggleMic('ask'); else { document.querySelector('#langseg [data-m=ask]').click(); focusText(); } };
+$('micTR').onclick = function () { ensureCtx(); toggleMic('tr2pl'); };
+$('micPL').onclick = function () { ensureCtx(); toggleMic('pl2tr'); };
+$('ask').onclick = function () { ensureCtx(); if (SR) toggleMic('ask'); else { document.querySelector('#langseg [data-m=ask]').click(); focusText(); } };
 
 /* ---------- init ---------- */
 loadSettings(); loadHistory();
@@ -716,7 +885,7 @@ if (!SR) document.body.classList.add('nospeech');
 fillSettings(); bindSettings(); renderBook(); renderHistory();
 warmUp(false);
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
-window.__tl = { warmUp: warmUp, pickVoice: pickVoice, setVoices: function (v) { voices = v; }, SYSTEM_PROMPT: SYSTEM_PROMPT, extractTranslation: extractTranslation, submit: submit, buildRequest: buildRequest, settings: settings, parseLenient: parseLenient, callClaude: callClaude, convo: function () { return convo; } };
+window.__tl = { warmUp: warmUp, queueSpeak: queueSpeak, stopSpeech: stopSpeech, speak: speak, pickVoice: pickVoice, setVoices: function (v) { voices = v; }, SYSTEM_PROMPT: SYSTEM_PROMPT, extractTranslation: extractTranslation, submit: submit, buildRequest: buildRequest, settings: settings, parseLenient: parseLenient, callClaude: callClaude, convo: function () { return convo; } };
 </script>
 </body>
 </html>
