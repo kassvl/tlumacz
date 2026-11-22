@@ -439,7 +439,7 @@ function speak(text, lang) {
     setTimeout(function () { synth.speak(u); }, 60);
   } catch (e) {}
 }
-var spQ = [], spPlaying = false, spGen = 0, CHUNK_PAUSE = 150;
+var spKeep = [], spQ = [], spPlaying = false, spGen = 0, CHUNK_PAUSE = 150;
 function nextChunk(gen) {
   if (gen !== spGen) return;
   var u = spQ.shift();
@@ -447,7 +447,19 @@ function nextChunk(gen) {
   var done = false;
   function adv() { if (done) return; done = true; setTimeout(function () { nextChunk(gen); }, CHUNK_PAUSE); }
   u.onend = adv; u.onerror = adv;
-  try { synth.speak(u); } catch (e) { adv(); }
+  var started = false; u.onstart = function () { started = true; };
+  spKeep.push(u); if (spKeep.length > 20) spKeep.shift(); // iOS drops events of garbage-collected utterances
+  function go(waited) {
+    if (gen !== spGen) return;
+    // iOS keeps the audio session in record mode until recognition has really ended; speaking earlier is silent
+    if (recLive && waited < 1000) { setTimeout(function () { go(waited + 50); }, 50); return; }
+    try { if (synth.paused) synth.resume(); synth.speak(u); } catch (e) { adv(); return; }
+    setTimeout(function () { // watchdog: iOS sometimes swallows a non-gesture utterance without error
+      if (gen !== spGen || started || done || synth.speaking) return;
+      try { synth.cancel(); synth.speak(u); } catch (e) { adv(); }
+    }, 1200);
+  }
+  go(0);
 }
 function queueSpeak(text, lang) { // no cancel: chunks of one turn play in order with a short pause
   if (!synth || !text) return;
@@ -478,15 +490,16 @@ function makeSpeaker(mode) {
 }
 function stopSpeech() { spGen++; spQ = []; spPlaying = false; try { if (synth) synth.cancel(); } catch (e) {} }
 function unlockAudio() {
-  if (audioUnlocked || !synth) return;
+  if (!synth || synth.speaking || synth.pending) return;
   audioUnlocked = true;
-  try { var u = new SpeechSynthesisUtterance(''); u.volume = 0; synth.speak(u); } catch (e) {}
+  try { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.rate = 2; synth.speak(u); } catch (e) {}
 }
-document.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
+document.addEventListener('pointerdown', unlockAudio, { capture: true });
+document.addEventListener('touchend', unlockAudio, { capture: true });
 
 /* ---------- speech recognition ---------- */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-var rec = null, recMode = null, recFinish = null, recErr = null;
+var rec = null, recMode = null, recFinish = null, recErr = null, recLive = false;
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 function setLive(msg, cls) { $('livetxt').textContent = msg || ''; $('live').className = (busy ? 'busy ' : '') + (cls || ''); }
 function setBusy(b) { busy = b; $('live').classList.toggle('busy', b); }
@@ -524,7 +537,7 @@ function startListening(mode) {
       if (t && !sess.sent) sess.timer = setTimeout(finish, Math.round((Number(settings.silence) || 0.7) * 1000));
     };
     rec.onerror = function (e) {
-      recErr = e.error;
+      recErr = e.error; if (e.error !== 'no-speech') recLive = false;
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') setLive('Mikrofon izni yok. Ayarlar > Safari/Chrome > Mikrofon izni ver, sayfayı yenile.', 'err');
       else if (e.error === 'no-speech') setLive('Ses duyulmadı. Tekrar dene.', 'err');
       else if (e.error === 'audio-capture') setLive('Mikrofon bulunamadı.', 'err');
@@ -532,11 +545,12 @@ function startListening(mode) {
       else if (e.error !== 'aborted') setLive('Ses tanıma hatası: ' + e.error, 'err');
     };
     rec.onend = function () {
+      recLive = false;
       clearTimeout(sess.timer); sess.timer = null;
       if (!sess.sent && !send() && !recErr) setLive('Ses duyulmadı. Tekrar dene.', 'err');
       release();
     };
-    rec.start();
+    rec.start(); recLive = true;
     setLive('🎙 Dinliyorum…');
     updateMicUI();
   } catch (e) { rec = null; recMode = null; recFinish = null; updateMicUI(); setLive('Ses tanıma başlatılamadı. Yazarak dene.', 'err'); }
